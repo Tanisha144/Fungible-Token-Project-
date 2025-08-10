@@ -1,0 +1,28 @@
+{
+  "canisters": {
+    "token_canister": {
+      "type": "custom",
+      "main": "src/lib.rs",
+      "candid": "token_canister.did",
+      "build": "cargo build --target wasm32-unknown-unknown --release",
+      "wasm": "target/wasm32-unknown-unknown/release/token_canister.wasm"
+    },
+    "frontend": {
+      "type": "assets",
+      "source": "frontend",
+      "build": ""
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}

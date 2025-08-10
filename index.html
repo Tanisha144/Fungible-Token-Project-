@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>EduCoin Token UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width:800px; margin:2rem auto; padding:1rem; }
+    input { padding:0.5rem; margin:0.3rem 0; width:100%; box-sizing:border-box; }
+    button { padding:0.5rem 1rem; margin-top:0.5rem; }
+    .card { border:1px solid #ddd; padding:1rem; border-radius:8px; margin-bottom:1rem; }
+  </style>
+</head>
+<body>
+  <h1 id="tokenInfo">EduCoin (EDU)</h1>
+  <div class="card">
+    <p id="totalSupply">Total Supply: -</p>
+    <p id="myBalance">Your Balance: -</p>
+    <p>
+      <label>Your Principal (for testing):</label>
+      <input id="myPrincipal" placeholder="principal from dfx identity (e.g., rrkah...)" />
+      <button onclick="refreshBalances()">Load Balances</button>
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Check Another User Balance</h3>
+    <input id="checkUserID" placeholder="Principal ID (e.g., rrkah-...)" />
+    <button onclick="checkOtherBalance()">Check</button>
+    <p id="otherBalance"></p>
+  </div>
+
+  <div class="card">
+    <h3>Transfer Tokens</h3>
+    <input id="receiverID" placeholder="Receiver Principal" />
+    <input id="transferAmount" type="number" placeholder="Amount (integer)" />
+    <button onclick="transferTokens()">Send</button>
+    <p id="transferMsg"></p>
+  </div>
+
+  <div class="card" id="mintSection" style="display:none;">
+    <h3>Mint Tokens (admin only)</h3>
+    <input id="mintUserID" placeholder="Recipient Principal" />
+    <input id="mintAmount" type="number" placeholder="Amount (integer)" />
+    <button onclick="mintTokens()">Mint</button>
+    <p id="mintMsg"></p>
+  </div>
+
+  <script type="module">
+    import { HttpAgent, Actor } from "https://cdn.jsdelivr.net/npm/@dfinity/agent@0.13.0/dist/agent.min.js";
+    import { idlFactory } from "../.dfx/local/canisters/token_canister/token_canister.did.js";
+
+    // replace with your canister id after deploy
+    const canisterId = "<REPLACE_WITH_CANISTER_ID>";
+    const agent = new HttpAgent({ host: "http://127.0.0.1:8000" });
+
+    // IMPORTANT for local dfx identity usage:
+    // agent.fetchRootKey(); // uncomment when using local dfx (development only)
+
+    const tokenActor = Actor.createActor(idlFactory, { agent, canisterId });
+
+    async function loadInfo() {
+      try {
+        const name = await tokenActor.token_name();
+        const symbol = await tokenActor.token_symbol();
+        const supply = await tokenActor.total_supply();
+        document.getElementById("tokenInfo").innerText = `${name} (${symbol})`;
+        document.getElementById("totalSupply").innerText = `Total Supply: ${supply} ${symbol}`;
+      } catch (e) {
+        console.error(e);
+        document.getElementById("totalSupply").innerText = "Error loading supply (is canister deployed?)";
+      }
+    }
+
+    async function refreshBalances() {
+      const myPrincipal = document.getElementById("myPrincipal").value.trim();
+      if (!myPrincipal) { alert("Enter your Principal"); return; }
+      try {
+        const bal = await tokenActor.balance_of(myPrincipal);
+        document.getElementById("myBalance").innerText = `Your Balance: ${bal}`;
+        // Show mint section only if principal equals admin (we can't read admin from canister; manual check)
+        // For local testing, if you used the same principal as admin during init, show the mint UI:
+        const adminLikely = false; // toggle manually if needed
+        if (adminLikely) document.getElementById("mintSection").style.display = "block";
+      } catch (e) {
+        console.error(e);
+        document.getElementById("myBalance").innerText = "Error loading balance";
+      }
+    }
+
+    async function checkOtherBalance() {
+      const pid = document.getElementById("checkUserID").value.trim();
+      if (!pid) return;
+      const bal = await tokenActor.balance_of(pid);
+      document.getElementById("otherBalance").innerText = `Balance: ${bal}`;
+    }
+
+    async function transferTokens() {
+      const to = document.getElementById("receiverID").value.trim();
+      const amt = Number(document.getElementById("transferAmount").value);
+      if (!to || !amt) { alert("enter receiver and amount"); return; }
+      // caller identity for dfx CLI is used when calling via dfx or by identity-aware agents (not covered here)
+      try {
+        const res = await tokenActor.transfer(to, BigInt(amt));
+        document.getElementById("transferMsg").innerText = (res.Ok || res.Err || JSON.stringify(res));
+        loadInfo();
+      } catch (e) {
+        console.error(e);
+        document.getElementById("transferMsg").innerText = "Transfer failed (see console)";
+      }
+    }
+
+    async function mintTokens() {
+      const to = document.getElementById("mintUserID").value.trim();
+      const amt = Number(document.getElementById("mintAmount").value);
+      if (!to || !amt) { alert("enter recipient and amount"); return; }
+      try {
+        const res = await tokenActor.mint(to, BigInt(amt));
+        document.getElementById("mintMsg").innerText = (res.Ok || res.Err || JSON.stringify(res));
+        loadInfo();
+      } catch (e) {
+        console.error(e);
+        document.getElementById("mintMsg").innerText = "Mint failed (see console)";
+      }
+    }
+
+    loadInfo();
+  </script>
+</body>
+</html>

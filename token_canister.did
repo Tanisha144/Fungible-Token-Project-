@@ -1,0 +1,8 @@
+service : {
+  "token_name" : () -> (text) query;
+  "token_symbol" : () -> (text) query;
+  "total_supply" : () -> (nat) query;
+  "balance_of" : (principal) -> (nat) query;
+  "transfer" : (principal, nat) -> (result text text) update;
+  "mint" : (principal, nat) -> (result text text) update;
+}
